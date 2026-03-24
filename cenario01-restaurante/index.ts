@@ -1,3 +1,4 @@
+import { it } from 'node:test'
 import { validar } from '../framework-teste'
 
 // 🍕 Cenário 01 — Sistema de Pedidos de Restaurante
@@ -53,25 +54,66 @@ const cardapio: IItemCardapio[] = [
 
 // ==================== FUNÇÃO A IMPLEMENTAR ====================
 
-function calcularPedido(pedido: IPedido): IResultadoPedido {
-    // TODO: Implementar a lógica seguindo as regras de negócio
-    // 
-    // Passos sugeridos:
-    // 1. Verificar se o pedido é válido (não vazio, dentro do limite de 20 itens, acima do mínimo)
-    // 2. Calcular o subtotal (somar quantidade × preço de cada item usando o cardápio)
-    // 3. Verificar se é combo (tem pelo menos 1 prato + 1 bebida + 1 sobremesa)
-    // 4. Calcular desconto de combo (15% do subtotal) se aplicável
-    // 5. Calcular gorjeta (10% do subtotal, antes de desconto) se solicitada
-    // 6. Calcular taxa de entrega (R$ 8,00 ou grátis se subtotal > R$ 100)
-    // 7. Calcular valor total: subtotal - desconto + gorjeta + taxaEntrega
-
-    return {
+function calcularPedido({itens, gorjeta}: IPedido): IResultadoPedido {
+    const resultadoInvalido: IResultadoPedido = {
         subtotal: 0,
         desconto: 0,
         taxaEntrega: 0,
         gorjeta: 0,
         valorTotal: 0,
         ehValido: false
+    }
+
+    // 1. Verificar se o pedido é válido (não vazio, dentro do limite de 20 itens, acima do mínimo)
+    const totalItens = itens.reduce((acc, item) => acc + item.quantidade, 0)
+    if (totalItens === 0 || totalItens > 20) return resultadoInvalido
+
+    // 2. Calcular o subtotal (somar quantidade × preço de cada item usando o cardápio)
+    let subtotal = 0
+
+    let temPrato = false
+    let temBebida = false
+    let temSobremesa = false
+
+    itens.forEach(item => {
+        const itemCardapio = cardapio.find((i) => i.id === item.itemId)
+        if(itemCardapio) {
+            subtotal += itemCardapio.preco * item.quantidade
+
+            if (itemCardapio.categoria === 'prato') temPrato = true
+            if (itemCardapio.categoria === 'bebida') temBebida = true
+            if (itemCardapio.categoria === 'sobremesa') temSobremesa = true
+        }
+    })
+
+    // 5. Pedido mínimo para entrega
+    if (subtotal < 25) return resultadoInvalido
+
+    // 3. Verificar se é combo (tem pelo menos 1 prato + 1 bebida + 1 sobremesa)
+    const combo = temPrato && temBebida && temSobremesa
+
+    // 5. Calcular gorjeta (10% do subtotal, antes de desconto) se solicitada
+    let valorGorjeta = 0
+    if (gorjeta) valorGorjeta = subtotal * 0.1
+
+    // 4. Calcular desconto de combo (15% do subtotal) se aplicável
+    let desconto = 0
+    if (combo) desconto = subtotal * 0.15
+
+    // 6. Calcular taxa de entrega (R$ 8,00 ou grátis se subtotal > R$ 100)
+    let valorTaxaEntrega = 0
+    subtotal > 100 ? valorTaxaEntrega = 0 : valorTaxaEntrega = 8
+
+    // 7. Calcular valor total: subtotal - desconto + gorjeta + taxaEntrega
+    let valorTotal = subtotal - desconto + valorGorjeta + valorTaxaEntrega
+
+    return {
+        subtotal,
+        desconto,
+        taxaEntrega: valorTaxaEntrega,
+        gorjeta: valorGorjeta,
+        valorTotal,
+        ehValido: true
     }
 }
 
