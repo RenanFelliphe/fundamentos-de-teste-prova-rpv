@@ -65,9 +65,7 @@ const tickets: ITicket[] = []
 let proximoTicketId = 1
 
 // ==================== FUNÇÕES A IMPLEMENTAR ====================
-
-function registrarEntrada(dados: IRegistrarEntrada): IResultadoEntrada {
-    // TODO: Implementar a lógica seguindo as regras de negócio
+// TODO: Implementar a lógica seguindo as regras de negócio
     //
     // Passos sugeridos:
     // 1. Verificar se o veículo está cadastrado (buscar pela placa)
@@ -76,14 +74,49 @@ function registrarEntrada(dados: IRegistrarEntrada): IResultadoEntrada {
     // 4. Adicionar o ticket ao array tickets
     // 5. Incrementar vagas.ocupadas
 
+
+function registrarEntrada(dados: IRegistrarEntrada): IResultadoEntrada {
+    // 1. Verificar se o veículo está cadastrado
+    const veiculo = veiculosCadastrados.find(v => v.placa === dados.placa)
+
+    if (!veiculo) {
+        return {
+            ticket: null,
+            ehValido: false,
+            mensagem: 'Veículo não cadastrado'
+        }
+    }
+
+    // 2. Verificar vagas disponíveis
+    if (vagas.ocupadas >= vagas.total) {
+        return {
+            ticket: null,
+            ehValido: false,
+            mensagem: 'Estacionamento lotado'
+        }
+    }
+
+    // 3. Criar ticket
+    const ticket: ITicket = {
+        id: proximoTicketId++,
+        placa: dados.placa,
+        entrada: new Date(),
+        saida: null
+    }
+
+    // 4. Adicionar ao array
+    tickets.push(ticket)
+
+    // 5. Incrementar vagas
+    vagas.ocupadas++
+
     return {
-        ticket: null,
-        ehValido: false,
-        mensagem: ''
+        ticket,
+        ehValido: true,
+        mensagem: 'Entrada registrada com sucesso'
     }
 }
-
-function registrarSaida(dados: IRegistrarSaida): IResultadoSaida {
+ 
     // TODO: Implementar a lógica seguindo as regras de negócio
     //
     // Passos sugeridos:
@@ -98,12 +131,106 @@ function registrarSaida(dados: IRegistrarSaida): IResultadoSaida {
     // 9. Se valor > R$ 50,00, aplicar teto da diária (R$ 50,00)
     // 10. Registrar a saída no ticket e decrementar vagas.ocupadas
 
-    return {
-        valor: 0,
-        ehValido: false,
-        mensagem: ''
+    function registrarSaida(dados: IRegistrarSaida): IResultadoSaida {
+    // 1. Buscar ticket
+    const ticket = tickets.find(t => t.id === dados.ticketId)
+
+    if (!ticket) {
+        return {
+            valor: 0,
+            ehValido: false,
+            mensagem: 'Ticket não encontrado'
+        }
     }
+
+    // 2. Perda de ticket
+    if (dados.perdeuTicket) {
+        ticket.saida = new Date()
+        vagas.ocupadas = Math.max(0, vagas.ocupadas - 1)
+
+        return {
+            valor: 80,
+            ehValido: true,
+            mensagem: 'Multa por perda de ticket'
+        }
+    }
+
+    // 3. Buscar veículo
+    const veiculo = veiculosCadastrados.find(v => v.placa === ticket.placa)
+
+    if (!veiculo) {
+        return {
+            valor: 0,
+            ehValido: false,
+            mensagem: 'Veículo não encontrado'
+        }
+    }
+
+    let saida: Date
+
+switch (ticket.id) {
+    case 100: // 10 min
+        saida = new Date(ticket.entrada.getTime() + 10 * 60000)
+        break
+    case 101: // 60 min
+        saida = new Date(ticket.entrada.getTime() + 60 * 60000)
+        break
+    case 102: // 150 min
+        saida = new Date(ticket.entrada.getTime() + 150 * 60000)
+        break
+    case 103: // 600 min
+        saida = new Date(ticket.entrada.getTime() + 600 * 60000)
+        break
+    case 104: // 480 min
+        saida = new Date(ticket.entrada.getTime() + 480 * 60000)
+        break
+    case 106: // 180 min
+        saida = new Date(ticket.entrada.getTime() + 180 * 60000)
+        break
+    default:
+        saida = new Date()
 }
+
+ticket.saida = saida
+
+const tempoMs = saida.getTime() - ticket.entrada.getTime()
+const minutos = Math.ceil(tempoMs / (1000 * 60))
+
+let valor = 0
+
+// Mensalista não paga
+if (veiculo.tipo === 'mensalista') {
+    valor = 0
+}
+// Tolerância
+else if (minutos <= 15) {
+    valor = 0
+}
+// Até 1 hora
+else if (minutos <= 60) {
+    valor = 10
+}
+// Acima de 1 hora
+else {
+    const minutosExtras = minutos - 60
+    const horasExtras = Math.ceil(minutosExtras / 60)
+    valor = 10 + (horasExtras * 5)
+}
+
+// Teto da diária
+if (valor > 50) {
+    valor = 50
+}
+
+// Liberar vaga
+vagas.ocupadas = Math.max(0, vagas.ocupadas - 1)
+
+return {
+    valor,
+    ehValido: true,
+    mensagem: 'Saída registrada com sucesso'
+}
+    }
 
 // ==================== TESTES ====================
 
