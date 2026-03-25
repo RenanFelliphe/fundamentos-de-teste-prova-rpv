@@ -52,22 +52,62 @@ const filmes: IFilme[] = [
 // ==================== FUNÇÃO A IMPLEMENTAR ====================
 
 function comprarIngressos(compra: ICompraIngresso): IResultadoCompra {
-    // TODO: Implementar a lógica seguindo as regras de negócio
-    //
-    // Passos sugeridos:
-    // 1. Buscar o filme pelo filmeId
-    // 2. Validar: máximo 6 espectadores, menores de 16 na sessão noite, classificação indicativa
-    // 3. Para cada espectador, calcular o valor do ingresso:
-    //    a. Valor base = R$ 40,00
-    //    b. Se terça-feira (diaSemana === 2): valor base *= 0.70 (30% desconto)
-    //    c. Se meia-entrada (estudante ou idade >= 60): valor *= 0.50
-    //    d. Se sessão 3D: valor += R$ 10,00
-    // 4. Somar todos os ingressos
-
-    return {
+    const resultadoInvalido: IResultadoCompra = {
         valorTotal: 0,
         quantidadeIngressos: 0,
         ehValida: false
+    }
+
+    // 1. Buscar o filme pelo filmeId
+    const filme = filmes.find(f => f.id === compra.filmeId)
+    if (!filme) return resultadoInvalido
+
+    // 2. Validar: máximo 6 espectadores, menores de 16 na sessão noite, classificação indicativa
+    if (compra.espectadores.length === 0 || compra.espectadores.length > 6) {
+        return resultadoInvalido
+    }
+
+    for (const espectador of compra.espectadores) {
+        // menor de 16 na sessão noite
+        if (compra.sessao === 'noite' && espectador.idade < 16) {
+            return resultadoInvalido
+        }
+
+        // classificação indicativa
+        if (espectador.idade < filme.classificacao) {
+            return resultadoInvalido
+        }
+    }
+
+    // 3. Para cada espectador, calcular o valor do ingresso
+    let valorTotal = 0
+
+    for (const espectador of compra.espectadores) {
+        let valor = 40
+
+        // b. Se terça-feira
+        if (compra.diaSemana === 2) {
+            valor *= 0.70
+        }
+
+        // c. Meia-entrada
+        if (espectador.ehEstudante || espectador.idade >= 60) {
+            valor *= 0.50
+        }
+
+        // d. Sessão 3D
+        if (filme.eh3D) {
+            valor += 10
+        }
+
+        valorTotal += valor
+    }
+
+    // 4. Somar todos os ingressos
+    return {
+        valorTotal,
+        quantidadeIngressos: compra.espectadores.length,
+        ehValida: true
     }
 }
 
